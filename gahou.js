@@ -5,6 +5,11 @@ function sum(xs) {
   for (let i = 1; i <= 6; i++) result += i * xs[i];
   return result;
 }
+function max(xs) {
+  let result = 0;
+  for (let i = 0; i < xs.length; i++) result = Math.max(result, xs[i]);
+  return result;
+}
 function pow(b, x) {
   if (x <= 0) return 1;
   if (x === 1) return b;
@@ -51,21 +56,45 @@ class Chara {
     [this.name, this.level, this.check] = args;
   }
   print() {
-    console.log("LV", this.level, ":", this.getPercent(), this.name);
+    console.log("LV", this.level, ":", this.getPercent(0), ":", this.getPercent(1), ":", this.name);
   }
-  getPercent() {
+  getPercent(reroll = 0) {
+    function decArrayToX(decArr) {
+      let arr = [0, 0, 0, 0, 0, 0, 0];
+      for (let d of decArr) arr[d]++;
+      return arr
+    }
     let denom = pow(6, this.level);
     let mole = 0;
     let table = getTable(this.level);
     for (let k in table) {
-      let arr = [0, 0, 0, 0, 0, 0, 0];
-      let decArr = intToDecArray(k);
-      for (let d of decArr) arr[d]++;
-      if (this.check(arr)) mole += table[k];
+      let decArrBase = decArrayToX(intToDecArray(k));
+      if (this.check(decArrBase)) {
+        mole += table[k];
+        continue;
+      }
+      if (reroll === 0) continue;
+      // 一つを 1 ~ 6 のどれかに変更して / 6
+      if (reroll === 1) {
+        // 一番入れ替えて確率が高くなるはずのi番目を振り直す
+        let resultMax = 0;
+        for (let i = 0; i < this.level; i++) {
+          let result = 0;
+          let decArr = intToDecArray(k);
+          for (let j = 1; j <= 6; j++) {
+            decArr[i] = j;
+            if (this.check(decArrayToX(decArr))) result += 1;
+          }
+          resultMax = Math.max(resultMax, result);
+        }
+        mole += table[k] * resultMax / 6;
+        continue;
+      }
     }
     return (Math.floor((mole * 100 / denom + 0.5) * 100) / 100) + "%";
   }
 }
+
 let charasByLevel = [
   [ // 3
     ["チルノ", 3, x => sum(x) === 9],
@@ -87,25 +116,25 @@ let charasByLevel = [
     ["イナバ", 5, x => x[2] === 0 && x[4] === 0 && x[6] === 0],
     ["パチュリー", 5, x => x.filter(y => y >= 1).length >= 5],
     ["咲夜", 5, x => sum(x) <= 12],
-    ["早苗", 5, x => Math.max(x) >= 4],
-    ["魔理沙", 5, x => sum(x >= 23)],
+    ["早苗", 5, x => max(x) >= 4],
+    ["魔理沙", 5, x => sum(x) >= 23],
     ["妖夢", 5, x => x[1] + x[2] + x[3] >= 5],
     ["霊夢", 5, x => x[1] === 0 && x[2] === 0 && x[3] === 0],
   ], [ // 6
     ["レミリア", 6, x => sum(x) <= 12],
     ["衣玖", 6, x => x.filter(y => y >= 1).length >= 6],
-    ["永琳", 6, x => Math.max(x) >= 5],
+    ["永琳", 6, x => max(x) >= 5],
     ["幽香", 6, x => sum(x) >= 30],
     ["幽々子", 6, x => x[2] + x[4] + x[6] >= 6],
     ["藍", 6, x => x.filter(y => y >= 1).length <= 2],
   ], [ // 7
     ["フランドール", 7, x => x[1] + x[2] >= 7],
-    ["輝夜", 7, x => Math.max(x) >= 6],
+    ["輝夜", 7, x => max(x) >= 6],
     ["小町", 7, x => sum(x) === 13],
     ["天子", 7, x => x[1] === 0 && x[2] === 0 && x[3] === 0 && x[4] === 0],
     ["妹紅", 7, x => sum(x) >= 38],
   ], [ // 8
-    ["萃香", 8, x => Math.max(x) >= 7],
+    ["萃香", 8, x => max(x) >= 7],
     ["四季映姫", 8, x => sum(x) <= 11],
     ["紫", 8, x => x[2] === 0 && x[3] === 0 && x[4] === 0 && x[5] === 0],
     ["神奈子", 8, x => sum(x) >= 46]
@@ -118,7 +147,7 @@ for (let charas of charasByLevel) {
     for (let i = 0; i < charas.length; i++) if (charas[i].check(x)) return true;
     return false;
   }])).print();
-
+  console.log("-----------------------------------------");
 }
 // for (let i = 1; i <= 8; i++) getTable(i);
 // [0~2]回振り直し有りで取れる確率を知りたい
