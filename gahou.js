@@ -17,6 +17,7 @@ function pow(b, x) {
   return pow2 * pow2 * (x % 2 === 1 ? b : 1);
 }
 function intToDecArray(n) {
+  n = parseInt(n);
   let arr = [];
   while (n > 0) {
     arr.push(n % 10);
@@ -41,8 +42,8 @@ let getTable = (() => {
     for (let p in pre) {
       for (let i = 1; i <= 6; i++) {
         let nextKey = sort(p * 10 + i)
-        if (nextKey in next) next[nextKey] += 1;
-        else next[nextKey] = 1;
+        if (nextKey in next) next[nextKey] += pre[p];
+        else next[nextKey] = pre[p];
       }
     }
     results[level] = next;
@@ -91,10 +92,47 @@ class Chara {
         continue;
       }
     }
-    return (Math.floor((mole * 100 / denom + 0.5) * 100) / 100) + "%";
+    return (Math.floor((mole * 100 / denom) * 100) / 100) + "%";
   }
+  getPercentWithSkill(skill) {
+    function skillNothingToDo(k, check) { return 0; }
+    function skillRerollAnyoneOnce(k, check) {
+      // 一番入れ替えて確率が高くなるはずのi番目を振り直す
+      let resultMax = 0;
+      for (let i = 0; i < k.length; i++) {
+        let result = 0;
+        let decArr = intToDecArray(k);
+        for (let j = 1; j <= 6; j++) {
+          decArr[i] = j;
+          if (check(decArrayToX(decArr))) result += 1;
+        }
+        resultMax = Math.max(resultMax, result);
+      }
+      return resultMax / 6;
+    }
+    function decArrayToX(decArr) {
+      let arr = [0, 0, 0, 0, 0, 0, 0];
+      for (let d of decArr) arr[d]++;
+      return arr
+    }
+    let denom = pow(6, this.level);
+    let mole = 0;
+    let table = getTable(this.level);
+    for (let k in table) {
+      let decArrBase = decArrayToX(intToDecArray(k));
+      if (this.check(decArrBase)) {
+        mole += table[k];
+        continue;
+      }
+      // mole += table[k] * skillNothingToDo(k, this.check);
+      mole += table[k] * skillRerollAnyoneOnce(k, this.check);
+    }
+    return (Math.floor((mole * 100 / denom) * 100) / 100) + "%";
+  }
+
 }
 
+console.log("LEVEL: 素で取れる確率 : １回振り直しで取れる確率 : 名前");
 let charasByLevel = [
   [ // 3
     ["チルノ", 3, x => sum(x) === 9],
@@ -106,7 +144,7 @@ let charasByLevel = [
     ["橙", 3, x => x.some(y => y >= 2)],
   ], [  // 4
     ["アリス", 4, x => x.every(y => y < 2)],
-    ["てゐ", 4, x => sum(x) >= 13],
+    ["てゐ", 4, x => sum(x) >= 17],
     ["にとり", 4, x => sum(x) <= 11],
     ["メルラン", 4, x => x[1] === 0 && x[2] === 0],
     ["リリカ", 4, x => x[3] === 0 && x[4] === 0],
@@ -137,7 +175,7 @@ let charasByLevel = [
     ["萃香", 8, x => max(x) >= 7],
     ["四季映姫", 8, x => sum(x) <= 11],
     ["紫", 8, x => x[2] === 0 && x[3] === 0 && x[4] === 0 && x[5] === 0],
-    ["神奈子", 8, x => sum(x) >= 46]
+    ["神奈子", 8, x => sum(x) >= 46],
   ]
 ].map(x => x.map(x => new Chara(x)));
 for (let charas of charasByLevel) {
