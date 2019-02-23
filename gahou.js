@@ -1,5 +1,6 @@
 #! /bin/node
 const readline = require('readline');
+const _ = require('lodash')
 function sum(xs) {
   let result = 0;
   for (let i = 1; i <= 6; i++) result += i * xs[i];
@@ -57,59 +58,27 @@ class Chara {
     [this.name, this.level, this.check] = args;
   }
   print() {
-    console.log("LV", this.level, ":", this.getPercent(0), ":", this.getPercent(1), ":", this.name);
-  }
-  getPercent(reroll = 0) {
-    function decArrayToX(decArr) {
-      let arr = [0, 0, 0, 0, 0, 0, 0];
-      for (let d of decArr) arr[d]++;
-      return arr
-    }
-    let denom = pow(6, this.level);
-    let mole = 0;
-    let table = getTable(this.level);
-    for (let k in table) {
-      let decArrBase = decArrayToX(intToDecArray(k));
-      if (this.check(decArrBase)) {
-        mole += table[k];
-        continue;
-      }
-      if (reroll === 0) continue;
-      // 一つを 1 ~ 6 のどれかに変更して / 6
-      if (reroll === 1) {
-        // 一番入れ替えて確率が高くなるはずのi番目を振り直す
-        let resultMax = 0;
-        for (let i = 0; i < this.level; i++) {
-          let result = 0;
-          let decArr = intToDecArray(k);
-          for (let j = 1; j <= 6; j++) {
-            decArr[i] = j;
-            if (this.check(decArrayToX(decArr))) result += 1;
-          }
-          resultMax = Math.max(resultMax, result);
-        }
-        mole += table[k] * resultMax / 6;
-        continue;
-      }
-    }
-    return (Math.floor((mole * 100 / denom) * 100) / 100) + "%";
-  }
-  getPercentWithSkill(skill) {
-    function skillNothingToDo(k, check) { return 0; }
-    function skillRerollAnyoneOnce(k, check) {
+    function skillNothingToDo(decArr, check) { return 0; }
+    function skillRerollAnyoneOnce(decArr, check) {
       // 一番入れ替えて確率が高くなるはずのi番目を振り直す
+      console.log(decArr);
+
+      let decArrBase = _.cloneDeep(decArr);
       let resultMax = 0;
-      for (let i = 0; i < k.length; i++) {
+      for (let i = 0; i < decArr.length; i++) {
         let result = 0;
-        let decArr = intToDecArray(k);
         for (let j = 1; j <= 6; j++) {
           decArr[i] = j;
-          if (check(decArrayToX(decArr))) result += 1;
+          if (check(decArr)) result++;
         }
         resultMax = Math.max(resultMax, result);
+        decArr[i] = decArrBase[i];
       }
       return resultMax / 6;
     }
+    console.log("LV", this.level, ":", this.getPercentWithSkill(skillNothingToDo), ":", this.getPercentWithSkill(skillRerollAnyoneOnce), ":", this.name);
+  }
+  getPercentWithSkill(skill) {
     function decArrayToX(decArr) {
       let arr = [0, 0, 0, 0, 0, 0, 0];
       for (let d of decArr) arr[d]++;
@@ -119,18 +88,19 @@ class Chara {
     let mole = 0;
     let table = getTable(this.level);
     for (let k in table) {
-      let decArrBase = decArrayToX(intToDecArray(k));
-      if (this.check(decArrBase)) {
+      if (this.check(decArrayToX(intToDecArray(k)))) {
         mole += table[k];
         continue;
       }
-      // mole += table[k] * skillNothingToDo(k, this.check);
-      mole += table[k] * skillRerollAnyoneOnce(k, this.check);
+      // 降って出なかったのでスキル
+      mole += table[k] * skill(intToDecArray(k), arr => this.check(decArrayToX(arr)));
     }
     return (Math.floor((mole * 100 / denom) * 100) / 100) + "%";
   }
 
 }
+
+
 
 console.log("LEVEL: 素で取れる確率 : １回振り直しで取れる確率 : 名前");
 let charasByLevel = [
@@ -185,6 +155,7 @@ for (let charas of charasByLevel) {
     for (let i = 0; i < charas.length; i++) if (charas[i].check(x)) return true;
     return false;
   }])).print();
+  break;
   console.log("-----------------------------------------");
 }
 // for (let i = 1; i <= 8; i++) getTable(i);
